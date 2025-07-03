@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql" // Change to mysql/sqlite if needed
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  active
+  disabled
+}
+
+model User {
+  id             String     @id @default(uuid()) @map("id")
+  name           String     @map("name")
+  email          String     @unique @map("email")
+  phone          String?    @map("phone")
+  status         UserStatus @default(active) @map("status")
+  roleId         String     @map("role_id")
+  profilePicture String?    @map("profile_picture")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+  password       String?    @map("password")
+
+  role    Role      @relation(fields: [roleId], references: [id])
+  UserOtp UserOtp[]
+
+  @@map("users")
+}
+
+model Role {
+  id    String @id @default(uuid())
+  name  String @unique
+  users User[]
+}
+
+model UserOtp {
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  otp       String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+}
