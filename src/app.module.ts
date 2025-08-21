@@ -9,6 +9,9 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ProductsModule } from './products/products.module';
 import { CategoriesModule } from './categories/categories.module';
 import { CartModule } from './cart/cart.module';
+import { CheckOutModule } from './checkout/checkout.module';
+import { BrandModule } from './brands/brands.module';
+import { CouponModule } from './coupouns/coupouns.module';
 
 @Module({
   imports: [
@@ -24,6 +27,10 @@ import { CartModule } from './cart/cart.module';
     ProductsModule,
     CategoriesModule,
     CartModule,
+    BrandModule,
+    CouponModule,
+    
+    CheckOutModule.forRootAsync()
   ],
 })
 export class AppModule {}

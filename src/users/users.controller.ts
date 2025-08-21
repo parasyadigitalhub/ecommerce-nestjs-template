@@ -22,77 +22,77 @@ import { Public } from '../common/decorators/public.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(
-    private readonly usersService: UsersService,
-    private readonly responseService: ResponseService,
-  ) {}
+  // constructor(
+  //   private readonly usersService: UsersService,
+  //   private readonly responseService: ResponseService,
+  // ) {}
 
-  @Post()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async create(@Body() createUserDto: CreateUserDto) {
-    const user = await this.usersService.create(createUserDto);
-    return this.responseService.successResponse(
-      'User Created Sucessfully',
-      user,
-    );
-  }
+  // @Post()
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async createcustomer(@Body() createUserDto: CreateUserDto) {
+  //   const user = await this.usersService.createCustomer(createUserDto);
+  //   return this.responseService.successResponse(
+  //     'Customer User Created Sucessfully',
+  //     user,
+  //   );
+  // }
 
-  @Get()
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async findAll(@Query('role') role?: string) {
-    if (role) {
-      return this.usersService.findByRole(role);
-    }
-    const users = await this.usersService.findAll();
-    return this.responseService.successResponse('Users Found', users);
-  }
+  // @Get()
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async findAll(@Query('role') role?: string) {
+  //   if (role) {
+  //     return this.usersService.findByRole(role);
+  //   }
+  //   const users = await this.usersService.findAll();
+  //   return this.responseService.successResponse('Users Found', users);
+  // }
 
-  @Get('roles')
-  @Public()
-  async getRoles(@Request() req) {
-    const roles = await this.usersService.findallroles();
-    return this.responseService.successResponse('Roles Found', roles);
-  }
+  // @Get('roles')
+  // @Public()
+  // async getRoles(@Request() req) {
+  //   const roles = await this.usersService.findallroles();
+  //   return this.responseService.successResponse('Roles Found', roles);
+  // }
 
-  @Get('staff')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async findAllStaff() {
-    const staff = await this.usersService.findByRole('staff');
-    return this.responseService.successResponse('Staff Found', staff);
-  }
+  // @Get('staff')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async findAllStaff() {
+  //   const staff = await this.usersService.findByRole('staff');
+  //   return this.responseService.successResponse('Staff Found', staff);
+  // }
 
-  @Get('profile')
-  async getProfile(@Request() req) {
-    const user = await this.usersService.findOne(req.user.id);
-    return this.responseService.successResponse('User Profile', user);
-  }
+  // @Get('profile')
+  // async getProfile(@Request() req) {
+  //   const user = await this.usersService.findOne(req.user.id);
+  //   return this.responseService.successResponse('User Profile', user);
+  // }
 
-  @Get(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async findOne(@Param('id') id: string) {
-    return this.usersService.findOne(id);
-  }
+  // @Get(':id')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async findOne(@Param('id') id: string) {
+  //   return this.usersService.findOne(id);
+  // }
 
-  @Patch('profile')
-  async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(req.user.id, updateUserDto);
-  }
+  // @Patch('profile')
+  // async updateProfile(@Request() req, @Body() updateUserDto: UpdateUserDto) {
+  //   return this.usersService.update(req.user.id, updateUserDto);
+  // }
 
-  @Patch(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.usersService.update(id, updateUserDto);
-  }
+  // @Patch(':id')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  //   return this.usersService.update(id, updateUserDto);
+  // }
 
-  @Delete(':id')
-  @UseGuards(RolesGuard)
-  @Roles('admin')
-  async remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
-  }
+  // @Delete(':id')
+  // @UseGuards(RolesGuard)
+  // @Roles('admin')
+  // async remove(@Param('id') id: string) {
+  //   return this.usersService.remove(id);
+  // }
 }

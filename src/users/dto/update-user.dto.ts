@@ -42,3 +42,4 @@ export class UpdateUserDto {
   @IsOptional()
   priority?: number;
 }
+

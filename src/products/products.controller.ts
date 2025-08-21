@@ -8,11 +8,15 @@ import {
   Delete,
   Query,
   UseGuards,
+  UseInterceptors,
+  UploadedFile
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { FileInterceptor } from '@nestjs/platform-express';
+
 
 @Controller('products')
 export class ProductsController {
@@ -62,5 +66,12 @@ export class ProductsController {
     @Body('quantity') quantity: number,
   ) {
     return this.productsService.updateStock(id, quantity);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('bulk-upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async bulkUpload(@UploadedFile() file: Express.Multer.File) {
+    return this.productsService.bulkCreateFromExcel(file.path);
   }
 }

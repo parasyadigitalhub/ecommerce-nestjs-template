@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  ForbiddenException
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -10,6 +11,8 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import * as bcrypt from 'bcrypt';
+import { Roles } from '@prisma/client';
+import { error } from 'console';
 
 @Injectable()
 export class AuthService {
@@ -22,18 +25,13 @@ export class AuthService {
   async validateUser(email: string, password: string): Promise<any> {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: { role: true },
     });
-
     if (!user) return null;
-
     if (!user.password) {
       throw new UnauthorizedException('Invalid login method');
     }
-
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) return null;
-
     const { password: _, ...result } = user;
     return result;
   }
@@ -44,18 +42,48 @@ export class AuthService {
     return this.generateToken(user);
   }
 
+  
   async register(registerDto: RegisterDto) {
     const { email } = registerDto;
-
     const existingUser = await this.prisma.user.findUnique({
       where: { email },
     });
     if (existingUser) {
       throw new ConflictException('Email already in use');
     }
+    const user = await this.usersService.createCustomer({ ...registerDto });
+    if (registerDto.password) {
+      return this.generateToken(user);
+    } else {
+      return await this.generateOtp(email);
+    }
+  }
 
-    const user = await this.usersService.create({ ...registerDto });
+  async registeradmin(registerDto: RegisterDto) {
+    const { email } = registerDto;
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
+    }
+    const user = await this.usersService.createAdmin({ ...registerDto });
+    if (registerDto.password) {
+      return this.generateToken(user);
+    } else {
+      return await this.generateOtp(email);
+    }
+  }
 
+  async registerdeliveryagent(registerDto: RegisterDto) {
+    const { email } = registerDto;
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email },
+    });
+    if (existingUser) {
+      throw new ConflictException('Email already in use');
+    }
+    const user = await this.usersService.createDeliveryAgent({ ...registerDto });
     if (registerDto.password) {
       return this.generateToken(user);
     } else {
@@ -67,7 +95,7 @@ export class AuthService {
     const payload = {
       email: user.email,
       sub: user.id,
-      role: user.role.name,
+      role: user.role,
     };
 
     return {
@@ -76,7 +104,7 @@ export class AuthService {
         id: user.id,
         name: user.name,
         email: user.email,
-        role: user.role.name,
+        role: user.role,
       },
     };
   }
@@ -115,7 +143,6 @@ export class AuthService {
   async validateOtp(email: string, otp: string) {
     const user = await this.prisma.user.findUnique({
       where: { email },
-      include: { role: true },
     });
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
@@ -136,5 +163,27 @@ export class AuthService {
     await this.prisma.userOtp.delete({ where: { userId: user.id } });
 
     return this.generateToken(user);
+  }
+
+  
+  async getAdminProfile(id: string, role: string) {
+    if (role !== Roles.ADMIN) {
+      throw new ForbiddenException('Profile cannot be accessed');
+    }
+    return this.usersService.AdminProfile(id);
+  }
+
+  async getCustomerProfile(id: string, role: string) {
+    if (role === Roles.DELIVERY) {
+      throw new ForbiddenException('Profile cannot be accessed');
+    }
+    return this.usersService.CutomerProfile(id);
+  }
+
+  async getDeliveryProfile(id: string, role: string) {
+    if (role !== Roles.DELIVERY) {
+      throw new ForbiddenException('Profile cannot be accessed');
+    }
+    return this.usersService.DeliveryProfile(id);
   }
 }

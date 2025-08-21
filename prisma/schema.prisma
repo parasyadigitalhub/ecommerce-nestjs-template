@@ -38,32 +38,85 @@ enum PaymentMethod {
   cash_on_delivery
 }
 
-model User {
-  id             String     @id @default(uuid()) @map("id")
-  name           String     @map("name")
-  email          String     @unique @map("email")
-  phone          String?    @map("phone")
-  status         UserStatus @default(active) @map("status")
-  roleId         String     @map("role_id")
-  profilePicture String?    @map("profile_picture")
-  createdAt      DateTime   @default(now()) @map("created_at")
-  updatedAt      DateTime   @updatedAt @map("updated_at")
-  password       String?    @map("password")
+enum CoupounConditions {
+  first_user
+  purchase_coupoun
+}
 
-  role      Role       @relation(fields: [roleId], references: [id])
-  UserOtp   UserOtp[]
-  orders    Order[]
-  cart      CartItem[]
-  reviews   Review[]
-  addresses Address[]
+enum Roles {
+  SUPER_ADMIN // full system control
+  ADMIN // manage store operations
+  STORE_MANAGER // manage products, orders, users (limited)
+  PRODUCT_MANAGER // manage product catalog
+  ORDER_MANAGER // handle orders, shipping, refunds
+  INVENTORY_MANAGER // stock & warehouse management
+  CUSTOMER_SUPPORT // handle customer queries & disputes
+  MARKETING_MANAGER // manage coupons, campaigns, promotions
+  FINANCE // accounting, payments, reports
+  VENDOR // seller in a marketplace model
+  DELIVERY // delivery personnel / logistics
+  AFFILIATE // partners / affiliates
+  CUSTOMER // registered buyer
+  GUEST // unregistered visitor
+}
+
+model User {
+  id                   String                @id @default(uuid()) @map("id")
+  name                 String                @map("name")
+  email                String                @unique @map("email")
+  phone                String?               @map("phone")
+  status               UserStatus            @default(active) @map("status")
+  role                 Roles                 @default(CUSTOMER)
+  profilePicture       String?               @map("profile_picture")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  updatedAt            DateTime              @updatedAt @map("updated_at")
+  password             String?               @map("password")
+  CustomerProfile      CustomerProfile?
+  AdminProfile         AdminProfile?
+  DeliveryAgentProfile DeliveryAgentProfile?
+  UserOtp              UserOtp?
+  CartItem             CartItem[]
+  Order                Order[]
+  Address              Address[]
+  Review               Review[]
+  CouponUsage          CouponUsage[]
 
   @@map("users")
 }
 
-model Role {
-  id    String @id @default(uuid())
-  name  String @unique
-  users User[]
+model CustomerProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  addresses    Address[]
+  reviews      Review[]
+  couponUsages CouponUsage[]
+  UserOtp      UserOtp[]
+  orders       Order[]
+  cart         CartItem[]
+}
+
+model AdminProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  notes String? // any internal notes about the admin
+}
+
+model DeliveryAgentProfile {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id])
+
+  vehicleNumber   String? // vehicle plate number
+  vehicleType     String? // e.g. "bike", "van"
+  assignedArea    String? // delivery region
+  availability    Boolean @default(true) // online/offline
+  rating          Float? // customer rating avg
+  totalDeliveries Int     @default(0) // completed deliveries
+  currentOrders   Order[] // deliveries assigned
 }
 
 model UserOtp {
@@ -74,7 +127,9 @@ model UserOtp {
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id])
+  user              User             @relation(fields: [userId], references: [id])
+  CustomerProfile   CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  customerProfileId String?
 
   @@index([userId])
 }
@@ -109,10 +164,12 @@ model Product {
   isActive     Boolean  @default(true)
   isFeatured   Boolean  @default(false)
   categoryId   String
+  brandId      String
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   category   Category         @relation(fields: [categoryId], references: [id])
+  brand      Brand            @relation(fields: [brandId], references: [id])
   images     ProductImage[]
   variants   ProductVariant[]
   inventory  Inventory[]
@@ -169,8 +226,10 @@ model CartItem {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  CustomerProfile   CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  customerProfileId String?
 
   @@unique([userId, productId])
   @@map("cart_items")
@@ -191,11 +250,15 @@ model Order {
   createdAt         DateTime    @default(now())
   updatedAt         DateTime    @updatedAt
 
-  user            User        @relation(fields: [userId], references: [id])
-  items           OrderItem[]
-  payments        Payment[]
-  shippingAddress Address?    @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
-  billingAddress  Address?    @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  user                   User                  @relation(fields: [userId], references: [id])
+  items                  OrderItem[]
+  payments               Payment[]
+  shippingAddress        Address?              @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddress         Address?              @relation("BillingAddress", fields: [billingAddressId], references: [id])
+  CustomerProfile        CustomerProfile?      @relation(fields: [customerProfileId], references: [id])
+  customerProfileId      String?
+  DeliveryAgentProfile   DeliveryAgentProfile? @relation(fields: [deliveryAgentProfileId], references: [id])
+  deliveryAgentProfileId String?
 
   @@map("orders")
 }
@@ -248,9 +311,11 @@ model Address {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user           User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  shippingOrders Order[] @relation("ShippingAddress")
-  billingOrders  Order[] @relation("BillingAddress")
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  shippingOrders    Order[]          @relation("ShippingAddress")
+  billingOrders     Order[]          @relation("BillingAddress")
+  CustomerProfile   CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  customerProfileId String?
 
   @@map("addresses")
 }
@@ -266,9 +331,59 @@ model Review {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product           Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  CustomerProfile   CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  customerProfileId String?
 
   @@unique([userId, productId])
   @@map("reviews")
+}
+
+model Brand {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  logoUrl         String?
+  bannerUrl       String?
+  website         String?
+  country         String?
+  foundedYear     Int?
+  isActive        Boolean  @default(true)
+  isFeatured      Boolean  @default(false)
+  metaTitle       String?
+  metaDescription String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relation
+  products Product[]
+}
+
+model Coupon {
+  id                     String            @id @default(uuid())
+  coupon_code            String            @unique
+  condition              CoupounConditions @default(purchase_coupoun)
+  description            String
+  minimum_purchase_value Decimal           @default(0) @db.Decimal(10, 2)
+  discount_amount        Decimal           @default(0) @db.Decimal(10, 2)
+  usage_limit_per_person Int               @default(1)
+  is_valid               Boolean           @default(true)
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime          @updatedAt
+
+  usages CouponUsage[]
+}
+
+model CouponUsage {
+  id       String   @id @default(uuid())
+  userId   String
+  couponId String
+  usedAt   DateTime @default(now())
+
+  user              User             @relation(fields: [userId], references: [id])
+  coupon            Coupon           @relation(fields: [couponId], references: [id])
+  CustomerProfile   CustomerProfile? @relation(fields: [customerProfileId], references: [id])
+  customerProfileId String?
 }
